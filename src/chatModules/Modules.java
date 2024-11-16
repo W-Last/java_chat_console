@@ -1,16 +1,9 @@
 package chatModules;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.Enumeration;
-
-
 
 public class Modules {
 
@@ -28,7 +21,10 @@ public class Modules {
         } else {
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
             System.out.println("Enter your nickname: ");
-            String nickname = reader.readLine().trim();
+            String nickname;
+            while ((nickname = reader.readLine().trim()).isEmpty()) {
+                System.out.println("Nickname cannot be empty. Please enter a valid nickname: ");
+            }
             Files.write(nicknameFile, nickname.getBytes());
             return nickname;
         }
@@ -41,29 +37,7 @@ public class Modules {
             try (Socket clientSocket = serverSocket.accept()) {
                 System.out.println("Client connected!");
 
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-                BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-
-                // Receiving messages thread
-                Thread receiveThread = new Thread(() -> {
-                    try {
-                        String message;
-                        while ((message = in.readLine()) != null) {
-                            System.out.println(message);
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
-
-                receiveThread.start();
-
-                // Sending messages
-                String userInput;
-                while ((userInput = stdIn.readLine()) != null) {
-                    out.println(NICKNAME + ": " + userInput);
-                }
+                handleCommunication(clientSocket, NICKNAME);
             }
         }
     }
@@ -80,32 +54,39 @@ public class Modules {
             try (Socket socket = new Socket(serverIPAddress, PORT)) {
                 System.out.println("Connected to server!");
 
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-
-                // Receiving messages thread
-                Thread receiveThread = new Thread(() -> {
-                    try {
-                        String message;
-                        while ((message = in.readLine()) != null) {
-                            System.out.println(message);
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
-
-                receiveThread.start();
-
-                // Sending messages
-                String userInput;
-                while ((userInput = stdIn.readLine()) != null) {
-                    out.println(NICKNAME + ": " + userInput);
-                }
+                handleCommunication(socket, NICKNAME);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Error while connecting to server: " + e.getMessage());
+        }
+    }
+
+    // Method to handle communication (sending and receiving messages)
+    private static void handleCommunication(Socket socket, String NICKNAME) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in))) {
+
+            // Receiving messages in a separate thread
+            Thread receiveThread = new Thread(() -> {
+                try {
+                    String message;
+                    while ((message = in.readLine()) != null) {
+                        System.out.println(message);
+                    }
+                } catch (IOException e) {
+                    System.err.println("Error reading messages: " + e.getMessage());
+                }
+            });
+            receiveThread.start();
+
+            // Sending messages
+            String userInput;
+            while ((userInput = stdIn.readLine()) != null) {
+                out.println(NICKNAME + ": " + userInput);
+            }
+        } catch (IOException e) {
+            System.err.println("Error during communication: " + e.getMessage());
         }
     }
 
@@ -119,7 +100,7 @@ public class Modules {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Error during network discovery: " + e.getMessage());
         }
         return null;
     }
@@ -152,5 +133,3 @@ public class Modules {
         }
     }
 }
-
-//TEST TO
